@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Orbit Rally</title>
+<meta name="description" content="A three-lap space racer around planet Vyom. Works offline.">
+<meta name="theme-color" content="#060912">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--BODY-->
+<canvas id="game" aria-label="Orbit Rally race track"></canvas>
+
+<!-- Race HUD -->
+<div id="hud" hidden>
+  <div class="hud-left">
+    <div class="hud-label">Lap</div>
+    <div class="hud-lap"><span id="hudLap">1</span><span class="dim">/3</span></div>
+    <div class="hud-label hud-gap">Fuel cells</div>
+    <div class="hud-cells"><span class="cell-icon"></span><span id="hudCells">0</span></div>
+  </div>
+  <div class="hud-center">
+    <div id="hudTime" class="hud-time">0:00.00</div>
+    <div class="hud-sub"><span id="hudSpeed">0</span> km/s · lap <span id="hudLapTime">0:00.00</span></div>
+    <div class="boost-meter" aria-label="Boost charge"><i></i><i></i><i></i></div>
+  </div>
+  <div class="hud-right">
+    <button id="btnMute" class="icon-btn" aria-label="Mute sound" title="Mute (M)"></button>
+    <button id="btnPause" class="icon-btn" aria-label="Pause" title="Pause (P)"></button>
+    <canvas id="minimap" width="150" height="120" aria-hidden="true"></canvas>
+  </div>
+</div>
+
+<div id="toast" aria-live="polite"></div>
+<div id="countdown" aria-live="assertive"></div>
+
+<!-- Touch controls -->
+<div id="touch" hidden>
+  <div class="t-left">
+    <button class="t-btn" data-key="left" aria-label="Steer left"><svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></svg></button>
+    <button class="t-btn" data-key="right" aria-label="Steer right"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>
+  </div>
+  <div class="t-right">
+    <button class="t-btn t-brake" data-key="brake" aria-label="Brake">Brake</button>
+    <button class="t-btn t-boost" data-key="boost" aria-label="Boost">Boost</button>
+  </div>
+</div>
+
+<!-- Title screen -->
+<section id="menu" class="screen">
+  <div class="menu-inner">
+    <p class="eyebrow">Week 2 · Project 8</p>
+    <h1 class="logo">Orbit<br>Rally</h1>
+    <p class="lede">Three laps around planet Vyom. Grab fuel cells, dodge asteroids, and slingshot past the moons.</p>
+    <div class="menu-actions">
+      <button id="btnStart" class="btn primary">Start race</button>
+      <button id="btnHow" class="btn" aria-expanded="false" aria-controls="how">How to play</button>
+    </div>
+    <dl class="records">
+      <div><dt>Best time</dt><dd id="menuBest">No time yet</dd></div>
+      <div><dt>Best lap</dt><dd id="menuBestLap">–</dd></div>
+    </dl>
+    <div id="how" class="how" hidden>
+      <div class="how-grid">
+        <div>
+          <h2>Keyboard</h2>
+          <ul>
+            <li><kbd>↑</kbd> / <kbd>W</kbd> thrust</li>
+            <li><kbd>←</kbd> <kbd>→</kbd> / <kbd>A</kbd> <kbd>D</kbd> steer</li>
+            <li><kbd>↓</kbd> / <kbd>S</kbd> brake</li>
+            <li><kbd>Space</kbd> boost</li>
+            <li><kbd>P</kbd> pause · <kbd>M</kbd> mute</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Phone</h2>
+          <ul>
+            <li>Your ship thrusts on its own</li>
+            <li>Left thumb: steer</li>
+            <li>Right thumb: brake and boost</li>
+            <li>Landscape gives the widest view</li>
+          </ul>
+        </div>
+        <div>
+          <h2>On the track</h2>
+          <ul>
+            <li><span class="sw sw-cell"></span>Fuel cells charge your boost</li>
+            <li><span class="sw sw-rock"></span>Asteroids knock you back</li>
+            <li><span class="sw sw-item"></span>Crates give a shield or warp</li>
+            <li><span class="sw sw-moon"></span>Moon rings slingshot you</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <label class="ghost-toggle"><input id="optGhost" type="checkbox" checked> Race against my best-run ghost</label>
+  </div>
+</section>
+
+<!-- Pause -->
+<section id="pause" class="screen dim-bg" hidden>
+  <div class="panel">
+    <h2 class="panel-title">Paused</h2>
+    <div class="menu-actions col">
+      <button id="btnResume" class="btn primary">Resume</button>
+      <button id="btnRestart" class="btn">Restart race</button>
+      <button id="btnQuit" class="btn">Main menu</button>
+    </div>
+  </div>
+</section>
+
+<!-- Results -->
+<section id="results" class="screen dim-bg" hidden>
+  <div class="panel">
+    <p class="eyebrow">Race complete</p>
+    <div id="resTime" class="res-time">0:00.00</div>
+    <p id="resBadge" class="badge" hidden>New best time</p>
+    <p id="resDelta" class="res-delta"></p>
+    <ol id="resLaps" class="laps"></ol>
+    <dl class="res-stats">
+      <div><dt>Fuel cells</dt><dd id="resCells">0</dd></div>
+      <div><dt>Asteroid hits</dt><dd id="resHits">0</dd></div>
+      <div><dt>Slingshots</dt><dd id="resSling">0</dd></div>
+    </dl>
+    <div class="menu-actions">
+      <button id="btnAgain" class="btn primary">Race again</button>
+      <button id="btnMenu" class="btn">Main menu</button>
+    </div>
+  </div>
+</section>
+
+<noscript><p style="color:#fff;padding:24px">Orbit Rally needs JavaScript to run.</p></noscript>
+<!--/BODY-->
+<script src="game.js"></script>
+</body>
+</html>
